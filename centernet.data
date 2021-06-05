@@ -1,0 +1,5 @@
+classes=2
+train=./datasets/JPEGImages/train
+valid=./datasets/JPEGImages/valid
+names=./datasets/data.names
+backup=./backup
