@@ -13,14 +13,18 @@ class ResNet(nn.Module):
 
         self.max_pool1 = nn.MaxPool2d(3, stride=2)
 
-        self.conv2_x = ConvTriple(64, 64, 64, 256)
+        self.conv2_x = ResidualBlock(64, 64, 256)
 
-        self.conv3_x = ConvTriple(256, 128, 128, 512)
+        self.conv3_x = ResidualBlock(256, 128, 512)
 
-        self.conv4_x = ConvTriple(512, 256, 256, 1024)
+        self.conv4_x = ResidualBlock(512, 256, 1024)
 
-        self.conv5_x = ConvTriple(1024, 512, 512, 2048)
+        self.conv5_x = ResidualBlock(1024, 512, 2048)
     
+        self.avgPool = nn.AvgPool2d(4)
+        
+        self.fc = nn.Linear(2048, 1000)
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.max_pool1(x)
@@ -32,6 +36,12 @@ class ResNet(nn.Module):
             x = self.conv4_x(x)
         for _ in range(3):
             x = self.conv5_x(x)
+        x = self.avgPool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        x = nn.Softmax(x)
+        return x
+
         
 
 

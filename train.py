@@ -18,10 +18,6 @@ def read_data_file(path):
 def train(dataset, model):
     return model
 
-    
-
-
-
 if __name__ == "__main__":
 
     print("run train")

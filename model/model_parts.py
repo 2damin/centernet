@@ -9,12 +9,28 @@ class Conv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class ConvTriple(nn.Module):
-    def __init__(self, in_channels, midOne_channels, midTwo_channels, out_channels):
+class PointwiseConv(nn.Module):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.convTriple = nn.Sequential(nn.Conv2d(in_channels, midOne_channels, kernel_size = 1),
-                                        nn.Conv2d(midOne_channels, midTwo_channels, kernel_size = 3),
-                                        nn.Conv2d(midTwo_channels, out_channels, kernel_size = 1))
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size = 1)
     
     def forward(self, x):
-        return self.convTriple(x)
+        return self.conv(x)
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, mid_channels, out_channels):
+        super().__init__()
+        self.residualBlock = nn.Sequential(nn.Conv2d(in_channels, mid_channels, kernel_size = 1),
+                                        nn.BatchNorm2d(mid_channels),
+                                        nn.ReLU(),
+                                        nn.Conv2d(mid_channels, mid_channels, kernel_size = 3),
+                                        nn.BatchNorm2d(mid_channels),
+                                        nn.ReLU(),
+                                        nn.Conv2d(mid_channels, out_channels, kernel_size = 1),
+                                        nn.BatchNorm2d(out_channels))
+
+        self.conv_pointwise = PointwiseConv(in_channels, out_channels)
+    
+    def forward(self, x):
+        shortcut = self.conv_pointwise(x)
+        return nn.Relu(torch.add(self.residualBlock(x) + shortcut))
