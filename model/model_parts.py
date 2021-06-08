@@ -4,7 +4,7 @@ import torch.nn as nn
 class Conv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size = 7, stride = 2, padding = 1)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size = 7, stride = 2, padding = 3)
 
     def forward(self, x):
         return self.conv(x)
