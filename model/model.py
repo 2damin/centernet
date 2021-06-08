@@ -11,7 +11,7 @@ class ResNet(nn.Module):
 
         self.conv1 = Conv(3, 64)
 
-        self.max_pool1 = nn.MaxPool2d(3, stride=2)
+        self.max_pool1 = nn.MaxPool2d(3, stride=2, padding=1)
 
         self.conv2_x = ResidualBlock(64, 64, 256)
 
