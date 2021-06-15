@@ -127,29 +127,23 @@ class YOLODataset(Dataset):
         bboxes_class = label[:, 0].astype(np.long).reshape(-1,1)
         bboxes_xywh = label[:, 1:].reshape(-1,4)
 
+
         img_copy = img.copy()
         for box in bboxes_xywh:
             cv2.rectangle(img_copy, (int(img.shape[0] * (box[0] - box[2]/2.)), int(img.shape[1] * (box[1] - box[3]/2.))), (int(img.shape[0] * (box[0] + box[2]/2.)), int( img.shape[1] * (box[1] + box[3]/2.))), (255,0,0), 1)
         
-        cv2.imwrite("test_original.jpg",img_copy)
-        #img = cv2.resize(img, dsize=(self.img_w, self.img_h))
+        #cv2.imwrite("test_copy.jpg",img_copy)
 
         if self.use_augmentation:
             img, bboxes_xywh, bboxes_class = augmentation.random_crop(img, bboxes_xywh, bboxes_class, p=1.0)
             img, bboxes_xywh, bboxes_class = augmentation.horizontal_flip(img, bboxes_xywh, bboxes_class)
             img, bboxes_xywh, bboxes_class = augmentation.random_scale(img, bboxes_xywh, bboxes_class)
-            img = cv2.resize(img, dsize=(self.img_w, self.img_h))
-        
+
+        img = cv2.resize(img, dsize=(self.img_w, self.img_h))
 
         img_h, img_w = img.shape[0:2]
 
-        print(img.shape)
-
         img = img[..., ::-1].transpose(2,0,1)
-
-        print(img.shape)
-
-        print("---")
 
         img = np.ascontiguousarray(img, dtype=np.uint8)
         img = torch.tensor(img, dtype=torch.float32)/255.
@@ -157,13 +151,14 @@ class YOLODataset(Dataset):
         label = np.concatenate([bboxes_class, bboxes_xywh], axis=1)
         label = torch.tensor(label, dtype=torch.float32)
 
-        print(img.shape)
-        print(label.shape)
-
         #for box in bboxes_xywh:
         #    cv2.rectangle(img, (int(img_w * (box[0] - box[2]/2.)), int(img_h * (box[1] - box[3]/2.))), (int(img_w * (box[0] + box[2]/2.)), int( img_h * (box[1] + box[3]/2.))), (255,0,0), 1)
         
-        #cv2.imwrite("test.jpg",img)
+        return {'image' : img, 'mask': label}
+    
+    def __len__(self):
+        return len(self.imgs_path)
+
             
             
 
