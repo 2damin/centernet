@@ -34,6 +34,7 @@ class CenterNet_ResNet(nn.Module):
             [256,256,256],
             [4,4,4],
         )
+        self.inplanes = 512 * BottleNeck.expansion
 
     def forward(self, x):
         x = self.conv1(x)
@@ -44,7 +45,9 @@ class CenterNet_ResNet(nn.Module):
         x = self.conv3_x(x)
         x = self.conv4_x(x)
         x = self.conv5_x(x)
-        
+
+        x = self.deconv_layers(x)
+
         return x
     
     def get_deconv_cfg(self, deconv_kernel, index):
@@ -62,13 +65,14 @@ class CenterNet_ResNet(nn.Module):
 
     def make_deconv_layer(self, num_layers, filters, kernels ):
         layers = []
+        in_channel = self.inplanes
         for i in range(num_layers):
-            kernel, padding, output_padding = self.get_deconv_cfg(kernels, i)
+            kernel, padding, output_padding = self.get_deconv_cfg(kernels[i], i)
 
             planes = filters[i]
             layers.append(
                 nn.ConvTranspose2d(
-                    in_channels=self.inplanes,
+                    in_channels=in_channel,
                     out_channels=planes,
                     kernel_size=kernel,
                     stride=2,
@@ -78,11 +82,11 @@ class CenterNet_ResNet(nn.Module):
                 )
             layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
             layers.append(nn.ReLU(inplace=True))
-            self.inplanes = planes
+            in_channel = planes
 
         return nn.Sequential(*layers)
 
-    def make_layer(self, block: BottleNeck, planes: int, num_blocks: int, stride: int):
+    def make_layer(self, block, planes, num_blocks: int, stride: int):
         downsample = None
 
         if stride != 1 or planes * block.expansion != self.inplanes:
