@@ -3,6 +3,12 @@ import numpy as np
 import random
 import cv2
 
+import sys
+
+def LINE():
+    return sys._getframe(1).f_lineno
+
+
 def covertCxcy2Ltrb(bboxes_xywh: np.ndarray):
     bboxes_ltrb = bboxes_xywh.copy()
     bboxes_ltrb[:,0] = bboxes_xywh[:,0] - bboxes_xywh[:,2] / 2.
@@ -31,20 +37,24 @@ def random_resize(img, bboxes_xywh, bboxes_class, p = 0.5):
 
 def random_scale(img, bboxes_xywh, bboxes_class, p = 0.1):
     if random.random() > p:
-
         bboxes_ltrb = covertCxcy2Ltrb(bboxes_xywh)
-
         img_h, img_w = img.shape[0:2]
-
-        bboxes_xmin = int(np.min(bboxes_ltrb[:,0]) * img_w)
-        bboxes_ymin = int(np.min(bboxes_ltrb[:,1]) * img_h)
-        bboxes_xmax = int(np.max(bboxes_ltrb[:,2]) * img_w)
-        bboxes_ymax = int(np.max(bboxes_ltrb[:,3]) * img_h)
+        if bboxes_ltrb.shape[0] == 0:
+            bboxes_xmin = 0
+            bboxes_ymin = 0
+            bboxes_xmax = img_w - 1
+            bboxes_ymax = img_h - 1
+            gap_x = random.randrange(0, img_w/10)
+            gap_y = random.randrange(0, img_h/10)
+        else:
+            bboxes_xmin = int(np.min(bboxes_ltrb[:,0]) * img_w)
+            bboxes_ymin = int(np.min(bboxes_ltrb[:,1]) * img_h)
+            bboxes_xmax = int(np.max(bboxes_ltrb[:,2]) * img_w)
+            bboxes_ymax = int(np.max(bboxes_ltrb[:,3]) * img_h)
+            gap_x = random.randrange(0,int(min(bboxes_xmin, img_w - bboxes_xmax ) - 1))
+            gap_y = random.randrange(0,int(min(bboxes_ymin, img_h - bboxes_ymax) - 1))
 
         scale_size = max(bboxes_xmax - bboxes_xmin, bboxes_ymax - bboxes_ymin) + 1
-
-        gap_x = random.randrange(0,int(min(bboxes_xmin, img_w - bboxes_xmax ) - 1))
-        gap_y = random.randrange(0,int(min(bboxes_ymin, img_h - bboxes_ymax) - 1))
 
         img_crop = img[max(0,bboxes_ymin - gap_y) : min(img_h - 1, bboxes_ymin + scale_size + gap_y) , max(0,bboxes_xmin - gap_x) : min(img_w - 1, bboxes_xmin + scale_size + gap_x)]
 
