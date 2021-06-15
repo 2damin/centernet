@@ -1,85 +1,54 @@
 import torch
 import torch.nn as nn
 
-from .model_parts import *
+from .model_parts import BottleNeck, Conv, PointwiseConv
 
-class ResNet(nn.Module):
-    def __init__(self, n_channels, n_classes ):
-        super(ResNet, self).__init__()
-        self.n_classes = n_classes
-        self.n_channels = n_channels
-
-        self.conv1 = Conv(3, 64)
-
-        self.max_pool1 = nn.MaxPool2d(3, stride=2)
-
-        self.conv2_x = ResidualBlock(64, 64, 256)
-
-        self.conv3_x = ResidualBlock(256, 128, 512)
-
-        self.conv4_x = ResidualBlock(512, 256, 1024)
-
-        self.conv5_x = ResidualBlock(1024, 512, 2048)
-    
-        self.avgPool = nn.AvgPool2d(4)
-        
-        self.fc = nn.Linear(2048, 1000)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.max_pool1(x)
-        for _ in range(3):
-            x = self.conv2_x(x)
-        for _ in range(4):
-            x = self.conv3_x(x)
-        for _ in range(6):
-            x = self.conv4_x(x)
-        for _ in range(3):
-            x = self.conv5_x(x)
-        x = self.avgPool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        x = nn.Softmax(x)
-        return x
+BN_MOMENTUM = 0.1
 
 class CenterNet_ResNet(nn.Module):
     def __init__(self, n_channels, n_classes ):
-        super(ResNet, self).__init__()
+        super().__init__()
         self.n_classes = n_classes
         self.n_channels = n_channels
+        self.deconv_with_bias = False
+        self.inplanes = 64
 
         self.conv1 = Conv(3, 64)
 
-        self.max_pool1 = nn.MaxPool2d(3, stride=2)
+        self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
 
-        self.conv2_x = ResidualBlock(64, 64, 256)
+        self.relu = nn.ReLU(inplace=True)
 
-        self.conv3_x = ResidualBlock(256, 128, 512)
+        self.max_pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        self.conv4_x = ResidualBlock(512, 256, 1024)
+        self.conv2_x = self.make_layer(BottleNeck, 64, num_blocks = 3, stride = 1)
 
-        self.conv5_x = ResidualBlock(1024, 512, 2048)
+        self.conv3_x = self.make_layer(BottleNeck, 128, num_blocks = 4, stride = 2)
 
-        self.deconv_layers = 
+        self.conv4_x = self.make_layer(BottleNeck, 256, num_blocks = 6, stride = 2)
+
+        self.conv5_x = self.make_layer(BottleNeck, 512, num_blocks = 3, stride = 2)
+
+        self.deconv_layers = self.make_deconv_layer(
+            3,
+            [256,256,256],
+            [4,4,4],
+        )
 
     def forward(self, x):
         x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
         x = self.max_pool1(x)
-        for _ in range(3):
-            x = self.conv2_x(x)
-        for _ in range(4):
-            x = self.conv3_x(x)
-        for _ in range(6):
-            x = self.conv4_x(x)
-        for _ in range(3):
-            x = self.conv5_x(x)
-        x = self.avgPool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        x = nn.Softmax(x)
+        x = self.conv2_x(x)
+        x = self.conv3_x(x)
+        x = self.conv4_x(x)
+        x = self.conv5_x(x)
+        
         return x
     
     def get_deconv_cfg(self, deconv_kernel, index):
+        padding = output_padding = 0
         if deconv_kernel == 4:
             padding = 1
             output_padding = 0
@@ -94,9 +63,47 @@ class CenterNet_ResNet(nn.Module):
     def make_deconv_layer(self, num_layers, filters, kernels ):
         layers = []
         for i in range(num_layers):
-            deconv_kerenl, padding, output_padding = self.get_deconv_cfg(kernels, i)
+            kernel, padding, output_padding = self.get_deconv_cfg(kernels, i)
 
-            layers.append(nn.ConvTranspose2d())
+            planes = filters[i]
+            layers.append(
+                nn.ConvTranspose2d(
+                    in_channels=self.inplanes,
+                    out_channels=planes,
+                    kernel_size=kernel,
+                    stride=2,
+                    padding=padding,
+                    output_padding=output_padding,
+                    bias = self.deconv_with_bias)
+                )
+            layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
+            layers.append(nn.ReLU(inplace=True))
+            self.inplanes = planes
+
+        return nn.Sequential(*layers)
+
+    def make_layer(self, block: BottleNeck, planes: int, num_blocks: int, stride: int):
+        downsample = None
+
+        if stride != 1 or planes * block.expansion != self.inplanes:
+            downsample = nn.Sequential(
+                PointwiseConv(self.inplanes, planes * block.expansion, stride = stride),
+                nn.BatchNorm2d(planes * block.expansion))
+
+        layer = []
+        layer.append(block(self.inplanes, planes, stride, downsample))
+
+        self.inplanes = planes * block.expansion
+
+        for i in range(1, num_blocks):
+            layer.append(block(self.inplanes, planes))
+        
+        return nn.Sequential(*layer)
+        
+
+
+
+
 
 
         
