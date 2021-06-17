@@ -6,12 +6,13 @@ from .model_parts import BottleNeck, Conv, PointwiseConv
 BN_MOMENTUM = 0.1
 
 class CenterNet_ResNet(nn.Module):
-    def __init__(self, n_channels, n_classes ):
+    def __init__(self, n_channels, n_classes, heads ):
         super().__init__()
         self.n_classes = n_classes
         self.n_channels = n_channels
         self.deconv_with_bias = False
         self.inplanes = 64
+        self.heads = heads
 
         self.conv1 = Conv(3, 64)
 
@@ -36,6 +37,17 @@ class CenterNet_ResNet(nn.Module):
         )
         self.inplanes = 512 * BottleNeck.expansion
 
+        for head in sorted(self.heads):
+            num_output = self.heads[head]
+
+            fc = nn.Sequential(
+                nn.Conv2d(256, 64, kernel_size = 3, padding = 1),
+                nn.ReLU(inplace = True),
+                nn.Conv2d(64, num_output, kernel_size = 1, padding = 0, stride = 1)
+            )
+            self.__setattr__(head, fc)
+
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
@@ -48,7 +60,11 @@ class CenterNet_ResNet(nn.Module):
 
         x = self.deconv_layers(x)
 
-        return x
+        ret = {}
+        for head in self.heads:
+            ret[head] = self.__getattr__(head)(x)
+
+        return [ret]
     
     def get_deconv_cfg(self, deconv_kernel, index):
         padding = output_padding = 0

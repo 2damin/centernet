@@ -63,7 +63,10 @@ if __name__ == "__main__":
 
     print( "load dataset ")
 
-    model = model.CenterNet_ResNet(3, 2)
+    heads = {'hm' : int(data_config['classes']),
+            'wh' : 2}
+
+    model = model.CenterNet_ResNet(3, 2, heads )
 
     train(trainDataset, validDataset, model, batch_size = 1, shuffle = True, num_workers = 1)
 
