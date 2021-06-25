@@ -54,11 +54,13 @@ if __name__ == "__main__":
     trainDataset = dataloader.YOLODataset(data_config['train'],
                                   img_w = 608,
                                   img_h = 608,
+                                  classes = int(data_config['classes']),
                                   use_augmentation = True)
 
     validDataset = dataloader.YOLODataset(data_config['valid'],
                                   img_w = 608,
                                   img_h = 608,
+                                  classes = int(data_config['classes']),
                                   use_augmentation = False)
 
     print( "load dataset ")
