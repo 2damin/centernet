@@ -5,6 +5,7 @@ import cv2
 from dataloader import dataloader
 from model import model
 from torch.utils.data import DataLoader
+from trains.ctdet_trainer import CtdetTrainer
 
 def read_data_file(path):
     options = dict()
@@ -24,7 +25,8 @@ def train(trainDataset,
           model,
           batch_size: int = 1,
           shuffle: bool = True,
-          num_workers: int = 0):
+          num_workers: int = 0,
+          opt = dict()):
 
     train_loader = DataLoader(trainDataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=1)
 
@@ -33,16 +35,20 @@ def train(trainDataset,
     model.to(device=device)
     model.eval()
 
-    print(len(train_loader))
+    optimizer = torch.optim.Adam(model.parameters(), float(opt["lr"]))
 
-    for batch in train_loader:
-        x = batch['image']
-        x = x.to(device=device, dtype=torch.float32)
-        pred = model(x)
-        #print(x)
-        #cv2.imwrite("x.jpg",x.numpy())
-        #pred = model()
-    
+
+    train = CtdetTrainer(opt, model, optimizer)
+
+    for epoch in range(int(opt['num_epoch'])):
+        print(epoch)
+
+        for batch in train_loader:
+            x = batch['image']
+            x = x.to(device=device, dtype=torch.float32)
+            pred = model(x)
+            train.train(epoch, data_loader=train_loader)
+            #CtdetLoss.forward(pred, )
     return model
 
 if __name__ == "__main__":
@@ -66,10 +72,11 @@ if __name__ == "__main__":
     print( "load dataset ")
 
     heads = {'hm' : int(data_config['classes']),
-            'wh' : 2}
+            'wh' : 2,
+            'reg' : 2}
 
     model = model.CenterNet_ResNet(3, 2, heads )
 
-    train(trainDataset, validDataset, model, batch_size = 1, shuffle = True, num_workers = 1)
+    train(trainDataset, validDataset, model, batch_size = 1, shuffle = True, num_workers = 1, opt = data_config)
 
     print("done")
