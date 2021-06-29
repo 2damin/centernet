@@ -3,9 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .utils import *
+from .utils import _transpose_and_gather_feat
 
 def _neg_loss(pred, gt):
+
     pos_inds = gt.eq(1).float()
     neg_inds = gt.lt(1).float()
 
@@ -40,8 +41,22 @@ class RegL1Loss(nn.Module):
         super(RegL1Loss, self).__init__()
 
     def forward(self, out, mask, ind, target):
-        pred = _transpose_ang_gather_feat(out, ind)
+        pred = _transpose_and_gather_feat(out, ind)
         mask = mask.unsqueeze(2).expand_as(pred).float()
         loss = F.l1_loss(pred * mask, target * mask, size_average=False)
         loss = loss / (mask.sum() + 1e-4)
         return loss
+
+class NormRegL1Loss(nn.Module):
+  def __init__(self):
+    super(NormRegL1Loss, self).__init__()
+  
+  def forward(self, output, mask, ind, target):
+    pred = _transpose_and_gather_feat(output, ind)
+    mask = mask.unsqueeze(2).expand_as(pred).float()
+    # loss = F.l1_loss(pred * mask, target * mask, reduction='elementwise_mean')
+    pred = pred / (target + 1e-4)
+    target = target * 0 + 1
+    loss = F.l1_loss(pred * mask, target * mask, size_average=False)
+    loss = loss / (mask.sum() + 1e-4)
+    return loss
