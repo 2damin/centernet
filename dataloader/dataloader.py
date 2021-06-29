@@ -178,8 +178,8 @@ class YOLODataset(Dataset):
 
         num_objs = min(len(label), self.max_objs)
 
-        output_h = img_h // 4
-        output_w = img_w // 4
+        output_h = self.img_h // 4
+        output_w = self.img_w // 4
         num_classes = self.num_classes
 
         trans_output = get_affine_transform(center, s, 0, [output_w, output_h])
@@ -221,7 +221,7 @@ class YOLODataset(Dataset):
             reg_mask[k] = 1
             gt_det.append([ct[0] - w/2, ct[1] - h/2, ct[0] + w/2, ct[1] + h/2, 1, class_id])
         
-        ret = {'image' : inp, 'hm' : hm, 'reg_mask' : reg_mask, 'ind' : ind, 'wh' : wh, 'gt_det' : gt_det}
+        ret = {'image' : inp, 'hm' : hm, 'reg_mask' : reg_mask, 'ind' : ind, 'wh' : wh, 'gt_det' : gt_det, 'reg': reg}
 
         return ret
     
