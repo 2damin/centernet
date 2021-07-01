@@ -15,11 +15,11 @@ def _neg_loss(pred, gt):
     loss = 0
 
     pos_loss = torch.pow(1 - pred, 2) * torch.log(pred) * pos_inds
-    neg_loss = neg_weight * torch.pow(pred, 2) * torch.log(1 - pred)
+    neg_loss = neg_weight * torch.pow(pred, 2) * torch.log(1 - pred) * neg_inds
 
-    num_pos = pos_inds.eq(1).sum()
-    pos_sum = pos_loss.sum()
-    neg_sum = neg_loss.sum()
+    num_pos = pos_inds.float().sum()
+    pos_loss = pos_loss.sum()
+    neg_loss = neg_loss.sum()
 
     if num_pos == 0:
         loss = loss - neg_loss

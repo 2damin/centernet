@@ -1,6 +1,7 @@
 import argparse
 import torch
 import cv2
+import os
 
 from dataloader import dataloader
 from model import model
@@ -19,6 +20,16 @@ def read_data_file(path):
         options[key] = value
     return options
 
+def save_model(path, epoch, model, optimizer=None):
+    if isinstance(model, torch.nn.DataParallel):
+        state_dict = model.module.state_dict()
+    else:
+        state_dict = model.state_dict()
+    data = {'epoch': epoch, 'state_dict': state_dict}
+
+    if not (optimizer is None):
+        data['optimizer'] = optimizer.state_dict()
+    torch.save(data, path)
 
 def train(trainDataset,
           validDataset,
@@ -29,26 +40,43 @@ def train(trainDataset,
           opt = dict()):
 
     train_loader = DataLoader(trainDataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=1)
+    valid_loader = DataLoader(validDataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=1)
+
+    lr_steps_str = opt['lr_step'].split(",")
+    lr_steps = []
+    for lr in lr_steps_str:
+        lr_steps.append(int(lr))
+
+    print("lr : ", lr_steps)
 
     device = torch.device("cuda")
 
     model.to(device=device)
-    model.eval()
+    model.train()
 
     optimizer = torch.optim.Adam(model.parameters(), float(opt["lr"]))
-
 
     train = CtdetTrainer(opt, model, optimizer)
 
     for epoch in range(int(opt['num_epoch'])):
-        print(epoch)
-
-        for batch in train_loader:
-            x = batch['image']
-            x = x.to(device=device, dtype=torch.float32)
-            pred = model(x)
-            train.train(epoch, data_loader=train_loader)
+        train.train(epoch, data_loader=train_loader)
+        #for batch in train_loader:
+            #x = batch['image']
+            #x = x.to(device=device, dtype=torch.float32)
+            #pred = model(x)
             #CtdetLoss.forward(pred, )
+        if epoch % int(opt['val_interval']) == 0 and epoch != 0:
+            print("Validate")
+            save_model(os.path.join(opt['save_dir'], 'model_best.pth'),epoch,model,optimizer)
+            model.eval()
+            with torch.no_grad():
+                log_dict_val, preds = train.validate(epoch, data_loader=valid_loader)
+
+        if epoch in lr_steps:
+            lr = opt.lr * ( 0.1 ** (opt.lr_step.index(epoch) + 1))
+            print("Drop LR to", lr)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
     return model
 
 if __name__ == "__main__":
@@ -69,6 +97,8 @@ if __name__ == "__main__":
                                   classes = int(data_config['classes']),
                                   use_augmentation = False)
 
+    print("Train dataset : ", trainDataset.__len__())
+
     print( "load dataset ")
 
     heads = {'hm' : int(data_config['classes']),
@@ -77,6 +107,6 @@ if __name__ == "__main__":
 
     model = model.CenterNet_ResNet(3, 2, heads )
 
-    train(trainDataset, validDataset, model, batch_size = 1, shuffle = True, num_workers = 1, opt = data_config)
+    train(trainDataset, validDataset, model, batch_size = 8, shuffle = True, num_workers = 1, opt = data_config)
 
     print("done")

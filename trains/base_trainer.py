@@ -11,8 +11,7 @@ class ModelWithLoss(torch.nn.Module):
         self.loss = loss
     
     def forward(self, batch):
-        print("ModelWithLoss")
-        batch['image'] = batch['image'].to(device=torch.device("cuda"), dtype=torch.float32)
+        #batch['image'] = batch['image'].to(device=torch.device("cuda"), dtype=torch.float32)
         outputs = self.model(batch['image'])
         loss, loss_stats = self.loss(outputs, batch)
         return outputs[-1], loss, loss_stats
@@ -48,15 +47,18 @@ class BaseTrainer(object):
         num_iters = len(data_loader)
         bar = Bar('{}/{}'.format('ctdet', 'default'), max=num_iters)
         end = time.time()
+
+        print("num_iters : ", num_iters)
         
         for iter_id, batch in enumerate(data_loader):
             if iter_id >= num_iters:
                 break
             data_time.update(time.time() - end)
 
-            #for k in batch:
-                # if k != 'meta':
-                #     batch[k] = batch[k].to(device=torch.device("cuda"), non_blocking=True)
+            for k in batch:
+                if k != "gt_det":
+                    batch[k] = batch[k].to(device=torch.device("cuda"), non_blocking=True, dtype=torch.float32)
+
             output, loss, loss_stats = model_with_loss(batch)
             loss = loss.mean()
             if phase == 'train':
@@ -85,5 +87,5 @@ class BaseTrainer(object):
     def train(self, epoch, data_loader):
         return self.run_epoch('train', epoch, data_loader)
     
-    def val(self, epoch, data_loader):
+    def validate(self, epoch, data_loader):
         return self.run_epoch('val', epoch, data_loader)
