@@ -135,10 +135,9 @@ class YOLODataset(Dataset):
     
     def __getitem__(self, idx):
         assert Path(self.imgs_path[idx]).stem == Path(self.labels_path[idx]).stem, "not equal img name and label name."
-        
+
         img = cv2.imread(self.imgs_path[idx],cv2.IMREAD_COLOR)
     
-
         center = np.array([img.shape[1]/2., img.shape[0]/2.], dtype = np.float32)
         s = np.array([self.img_w, self.img_h], dtype=np.float32)
 
@@ -214,14 +213,14 @@ class YOLODataset(Dataset):
             ct = np.array( [(bbox[1] + bbox[3])/2, (bbox[2] + bbox[4])/2], dtype=np.float32 )
             ct_int = ct.astype(np.int32)
 
-            draw_gaussian(hm[class_id], ct_int, radius)
+            hm[class_id] = draw_gaussian(hm[class_id], ct_int, radius)
             wh[k] = 1. * w, 1. * h
             ind[k] = ct_int[1] * output_w + ct_int[0]
             reg[k] = ct - ct_int
             reg_mask[k] = 1
             gt_det.append([ct[0] - w/2, ct[1] - h/2, ct[0] + w/2, ct[1] + h/2, 1, class_id])
         
-        ret = {'image' : inp, 'hm' : hm, 'reg_mask' : reg_mask, 'ind' : ind, 'wh' : wh, 'gt_det' : gt_det, 'reg': reg}
+        ret = {'image' : inp, 'hm' : hm, 'reg_mask' : reg_mask, 'ind' : ind, 'wh' : wh, 'reg': reg}
 
         return ret
     
